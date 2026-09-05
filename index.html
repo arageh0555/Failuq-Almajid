@@ -41,7 +41,7 @@
             z-index: 1;
         }
 
-        /* طبقة الواجهة الأساسية */
+        /* واجهة اللمس العلوية والسفلية */
         .ui-layer {
             position: absolute;
             top: 0;
@@ -60,7 +60,6 @@
             pointer-events: auto;
         }
 
-        /* الشريط العلوي */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -108,7 +107,6 @@
             font-weight: 800;
         }
 
-        /* الموارد الأربعة */
         .resources-group {
             display: flex;
             gap: 6px;
@@ -127,7 +125,6 @@
             font-weight: 700;
         }
 
-        /* منطقة المنتصف (الطوابير) */
         .mid-section {
             display: flex;
             justify-content: space-between;
@@ -155,7 +152,6 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.6);
         }
 
-        /* الشريط السفلي */
         .bottom-bar {
             display: flex;
             justify-content: space-between;
@@ -213,7 +209,6 @@
             transform: scale(0.95);
         }
 
-        /* النوافذ المنبثقة للبناء */
         #build-modal {
             display: none;
             position: absolute;
@@ -280,7 +275,6 @@
     <div id="game-canvas"></div>
 
     <div class="ui-layer">
-        <!-- الشريط العلوي -->
         <header class="top-bar interactive">
             <div class="player-profile">
                 <div class="avatar">👳‍♂️</div>
@@ -298,7 +292,6 @@
             </div>
         </header>
 
-        <!-- الوسط -->
         <section class="mid-section">
             <div class="queues-column interactive">
                 <div class="queue-item" id="q-build" title="البناء">🔨</div>
@@ -307,9 +300,8 @@
             </div>
         </section>
 
-        <!-- الشريط السفلي -->
         <footer class="bottom-bar interactive">
-            <button class="map-toggle-btn" onclick="alert('خريطة الصحراء الكبرى ستفتح في التحديث القادم!')">
+            <button class="map-toggle-btn" onclick="alert('خريطة الصحراء الكبرى ستفتح في الخطوة التالية!')">
                 <span>🌍</span>
                 الصحراء
             </button>
@@ -323,7 +315,6 @@
         </footer>
     </div>
 
-    <!-- نافذة التشييد والترقية -->
     <div id="build-modal">
         <div class="modal-header" id="modal-title">تشييد منشأة</div>
         <div id="modal-options"></div>
@@ -331,16 +322,15 @@
     </div>
 
     <script>
-        // تحميل وحفظ الحالة في الذاكرة المحلية (LocalStorage)
         const DEFAULT_STATE = {
             power: 1500,
             resources: { food: 2000, wood: 2000, stone: 1000, gold: 500 },
             production: { food: 4, wood: 4, stone: 2, gold: 1 },
             slots: [
-                { id: 1, x: 220, y: 180, building: 'قصر الإمارة', level: 1, upgrading: false },
-                { id: 2, x: 420, y: 180, building: 'مزرعة القمح', level: 1, upgrading: false },
-                { id: 3, x: 220, y: 320, building: 'معسكر الحطابين', level: 1, upgrading: false },
-                { id: 4, x: 420, y: 320, building: null, level: 0, upgrading: false }
+                { id: 1, x: 800, y: 700, building: 'قصر الإمارة', level: 1, upgrading: false },
+                { id: 2, x: 1050, y: 700, building: 'مزرعة القمح', level: 1, upgrading: false },
+                { id: 3, x: 800, y: 900, building: 'معسكر الحطابين', level: 1, upgrading: false },
+                { id: 4, x: 1050, y: 900, building: null, level: 0, upgrading: false }
             ]
         };
 
@@ -363,19 +353,52 @@
             constructor() { super('MainCityScene'); }
 
             create() {
-                const w = this.scale.width;
-                const h = this.scale.height;
+                const mapW = 1920;
+                const mapH = 1600;
+
+                // إعداد حدود الكاميرا والتمركز حول المنتصف
+                this.cameras.main.setBounds(0, 0, mapW, mapH);
+                this.cameras.main.centerOn(925, 800);
 
                 // أرضية القلعة
-                this.add.rectangle(w / 2, h / 2, 2000, 2000, 0xba9456);
-                this.add.grid(w / 2, h / 2, 2000, 2000, 60, 60, 0x000000, 0, 0x8a6d38, 0.35);
+                this.add.rectangle(mapW / 2, mapH / 2, mapW, mapH, 0xba9456);
+                this.add.grid(mapW / 2, mapH / 2, mapW, mapH, 60, 60, 0x000000, 0, 0x8a6d38, 0.35);
 
-                // بناء قطع الأراضي (Plots)
+                // خاصية سحب وتحريك الشاشة باللمس
+                this.isDragging = false;
+                this.dragDistance = 0;
+
+                this.input.on('pointerdown', () => {
+                    this.isDragging = false;
+                    this.dragDistance = 0;
+                });
+
+                this.input.on('pointermove', (pointer) => {
+                    if (!pointer.isDown) return;
+
+                    const dx = pointer.x - pointer.prevPosition.x;
+                    const dy = pointer.y - pointer.prevPosition.y;
+                    this.dragDistance += Math.abs(dx) + Math.abs(dy);
+
+                    if (this.dragDistance > 6) {
+                        this.isDragging = true;
+                        this.cameras.main.scrollX -= dx;
+                        this.cameras.main.scrollY -= dy;
+                    }
+                });
+
+                this.input.on('pointerup', () => {
+                    this.time.delayedCall(40, () => {
+                        this.isDragging = false;
+                    });
+                });
+
+                // بناء مواقع الأراضي
                 this.plotContainers = [];
                 gameState.slots.forEach(slot => {
                     const container = this.add.container(slot.x, slot.y);
 
-                    const base = this.add.rectangle(0, 0, 150, 95, 0x856637)
+                    const base = this.add.rectangle(0, 0, 160, 100, 0x856637)
                         .setStrokeStyle(2, 0xd4af37)
                         .setInteractive({ useHandCursor: true });
 
@@ -388,7 +411,7 @@
                     container.base = base;
                     container.label = label;
 
-                    base.on('pointerdown', () => this.onPlotClicked(container));
+                    base.on('pointerup', () => this.onPlotClicked(container));
                     this.plotContainers.push(container);
                 });
 
@@ -420,6 +443,8 @@
             }
 
             onPlotClicked(container) {
+                if (this.isDragging) return;
+
                 const slot = container.slotData;
                 if (slot.upgrading) return;
 
@@ -551,3 +576,4 @@
     </script>
 </body>
 </html>
+
