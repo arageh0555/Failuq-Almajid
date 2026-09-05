@@ -15,21 +15,20 @@
             --btn-active: #4a2d13;
         }
 
-        * {
-            box-sizing: border-box;
+        /* منع المتصفح من اعتراض سحب الشاشة */
+        html, body {
             margin: 0;
             padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-        }
-
-        body {
-            background-color: #0d0805;
-            font-family: 'Cairo', sans-serif;
-            overflow: hidden;
             width: 100vw;
             height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            touch-action: none !important;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            background-color: #0d0805;
+            font-family: 'Cairo', sans-serif;
         }
 
         #game-canvas {
@@ -39,6 +38,11 @@
             width: 100%;
             height: 100%;
             z-index: 1;
+            touch-action: none !important;
+        }
+
+        canvas {
+            touch-action: none !important;
         }
 
         /* واجهة اللمس العلوية والسفلية */
@@ -301,7 +305,7 @@
         </section>
 
         <footer class="bottom-bar interactive">
-            <button class="map-toggle-btn" onclick="alert('خريطة الصحراء الكبرى ستفتح في الخطوة التالية!')">
+            <button class="map-toggle-btn" onclick="alert('خريطة الصحراء ستفتح قريباً!')">
                 <span>🌍</span>
                 الصحراء
             </button>
@@ -327,14 +331,20 @@
             resources: { food: 2000, wood: 2000, stone: 1000, gold: 500 },
             production: { food: 4, wood: 4, stone: 2, gold: 1 },
             slots: [
-                { id: 1, x: 800, y: 700, building: 'قصر الإمارة', level: 1, upgrading: false },
-                { id: 2, x: 1050, y: 700, building: 'مزرعة القمح', level: 1, upgrading: false },
-                { id: 3, x: 800, y: 900, building: 'معسكر الحطابين', level: 1, upgrading: false },
-                { id: 4, x: 1050, y: 900, building: null, level: 0, upgrading: false }
+                { id: 1, x: 1350, y: 1350, building: 'قصر الإمارة', level: 1, upgrading: false },
+                { id: 2, x: 1600, y: 1350, building: 'مزرعة القمح', level: 1, upgrading: false },
+                { id: 3, x: 1350, y: 1550, building: 'معسكر الحطابين', level: 1, upgrading: false },
+                { id: 4, x: 1600, y: 1550, building: null, level: 0, upgrading: false }
             ]
         };
 
         let gameState = JSON.parse(localStorage.getItem('arabian_4x_state')) || DEFAULT_STATE;
+
+        // التحقق من صلاحية الإحداثيات وضمان ظهورها في منتصف الخريطة الكبيرة
+        if (!gameState.slots || gameState.slots[0].x < 500) {
+            gameState.slots = DEFAULT_STATE.slots;
+            localStorage.setItem('arabian_4x_state', JSON.stringify(gameState));
+        }
 
         function saveGame() {
             localStorage.setItem('arabian_4x_state', JSON.stringify(gameState));
@@ -353,47 +363,67 @@
             constructor() { super('MainCityScene'); }
 
             create() {
-                const mapW = 1920;
-                const mapH = 1600;
+                const mapW = 3000;
+                const mapH = 3000;
 
-                // إعداد حدود الكاميرا والتمركز حول المنتصف
+                // 1. توسيع حدود الكاميرا لتسمح بالسحب الحر في كل الاتجاهات
                 this.cameras.main.setBounds(0, 0, mapW, mapH);
-                this.cameras.main.centerOn(925, 800);
+                
+                // التركيز المباشر على موقع قصر الإمارة
+                const startPlot = gameState.slots[0];
+                this.cameras.main.centerOn(startPlot.x + 100, startPlot.y + 100);
 
-                // أرضية القلعة
+                // أرضية القلعة الواسعة
                 this.add.rectangle(mapW / 2, mapH / 2, mapW, mapH, 0xba9456);
                 this.add.grid(mapW / 2, mapH / 2, mapW, mapH, 60, 60, 0x000000, 0, 0x8a6d38, 0.35);
 
-                // خاصية سحب وتحريك الشاشة باللمس
+                // 2. منطق السحب باللمس اليدوي المباشر (Direct Delta Tracking)
+                this.isPointerDown = false;
                 this.isDragging = false;
-                this.dragDistance = 0;
+                this.lastTouchX = 0;
+                this.lastTouchY = 0;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
 
-                this.input.on('pointerdown', () => {
+                this.input.on('pointerdown', (pointer) => {
+                    this.isPointerDown = true;
                     this.isDragging = false;
-                    this.dragDistance = 0;
+                    this.touchStartX = pointer.x;
+                    this.touchStartY = pointer.y;
+                    this.lastTouchX = pointer.x;
+                    this.lastTouchY = pointer.y;
                 });
 
                 this.input.on('pointermove', (pointer) => {
-                    if (!pointer.isDown) return;
+                    if (!this.isPointerDown) return;
 
-                    const dx = pointer.x - pointer.prevPosition.x;
-                    const dy = pointer.y - pointer.prevPosition.y;
-                    this.dragDistance += Math.abs(dx) + Math.abs(dy);
+                    const moveX = pointer.x - this.lastTouchX;
+                    const moveY = pointer.y - this.lastTouchY;
 
-                    if (this.dragDistance > 6) {
+                    // إذا تجاوزت حركة الإصبع 5 بكسل يتم تفعيل وضع السحب فوراً
+                    const totalMove = Math.hypot(pointer.x - this.touchStartX, pointer.y - this.touchStartY);
+                    if (totalMove > 5) {
                         this.isDragging = true;
-                        this.cameras.main.scrollX -= dx;
-                        this.cameras.main.scrollY -= dy;
                     }
+
+                    if (this.isDragging) {
+                        this.cameras.main.scrollX -= moveX;
+                        this.cameras.main.scrollY -= moveY;
+                    }
+
+                    this.lastTouchX = pointer.x;
+                    this.lastTouchY = pointer.y;
                 });
 
                 this.input.on('pointerup', () => {
-                    this.time.delayedCall(40, () => {
+                    this.isPointerDown = false;
+                    // مهلة قصيرة لإلغاء أي ضغطة مفاجئة على المباني بعد الانتهاء من السحب
+                    this.time.delayedCall(80, () => {
                         this.isDragging = false;
                     });
                 });
 
-                // بناء مواقع الأراضي
+                // 3. بناء قطع الأراضي (Plots)
                 this.plotContainers = [];
                 gameState.slots.forEach(slot => {
                     const container = this.add.container(slot.x, slot.y);
@@ -443,6 +473,7 @@
             }
 
             onPlotClicked(container) {
+                // منع فتح القائمة إذا كان اللاعب في حالة سحب الخريطة
                 if (this.isDragging) return;
 
                 const slot = container.slotData;
@@ -556,6 +587,7 @@
             document.getElementById('build-modal').style.display = 'none';
         }
 
+        // ضبط المحرك مع التقاط إشارات اللمس وإلغاء سلوك التمرير الافتراضي
         const config = {
             type: Phaser.AUTO,
             parent: 'game-canvas',
@@ -564,6 +596,12 @@
             scale: {
                 mode: Phaser.Scale.RESIZE,
                 autoCenter: Phaser.Scale.CENTER_BOTH
+            },
+            input: {
+                touch: {
+                    capture: true
+                },
+                activePointers: 2
             },
             scene: [MainCityScene]
         };
@@ -576,4 +614,3 @@
     </script>
 </body>
 </html>
-
