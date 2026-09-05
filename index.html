@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>إمارة الصحراء - 4X Mobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        :root {
+            --gold-primary: #d4af37;
+            --gold-light: #f5d77f;
+            --bg-dark: rgba(24, 15, 8, 0.92);
+            --border-frame: #6a4c28;
+            --btn-active: #4a2d13;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #0d0805;
+            font-family: 'Cairo', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* طبقة الواجهة الأساسية */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* الشريط العلوي */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: linear-gradient(180deg, rgba(13, 8, 5, 0.95) 0%, rgba(13, 8, 5, 0) 100%);
+        }
+
+        .player-profile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-dark);
+            padding: 4px 10px 4px 4px;
+            border-radius: 20px;
+            border: 1px solid var(--gold-primary);
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #4a3319;
+            border: 2px solid var(--gold-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .player-name {
+            color: #fff;
+            font-size: 11px;
+        }
+
+        .player-power {
+            color: var(--gold-light);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        /* الموارد الأربعة */
+        .resources-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .res-pill {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-frame);
+            border-radius: 6px;
+            padding: 3px 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* منطقة المنتصف (الطوابير) */
+        .mid-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 12px;
+            flex-grow: 1;
+            align-items: center;
+        }
+
+        .queues-column {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .queue-item {
+            width: 38px;
+            height: 38px;
+            background: var(--bg-dark);
+            border: 1px solid var(--gold-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+        }
+
+        /* الشريط السفلي */
+        .bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 8px 12px;
+            background: linear-gradient(0deg, rgba(13, 8, 5, 0.95) 0%, rgba(13, 8, 5, 0) 100%);
+        }
+
+        .map-toggle-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #8a6529 0%, #36220d 100%);
+            border: 2px solid var(--gold-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold-light);
+            font-size: 10px;
+            font-weight: 700;
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+            cursor: pointer;
+        }
+
+        .map-toggle-btn span {
+            font-size: 18px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-frame);
+            border-radius: 8px;
+            padding: 6px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #eee;
+            font-size: 11px;
+            min-width: 48px;
+            cursor: pointer;
+        }
+
+        .action-btn span {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .action-btn:active, .map-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* النوافذ المنبثقة للبناء */
+        #build-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(24, 15, 8, 0.96);
+            border: 2px solid var(--gold-primary);
+            border-radius: 12px;
+            padding: 16px;
+            width: 88%;
+            max-width: 440px;
+            color: #fff;
+            z-index: 100;
+            box-shadow: 0 0 25px rgba(0,0,0,0.9);
+        }
+
+        .modal-header {
+            text-align: center;
+            color: var(--gold-light);
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-frame);
+            padding-bottom: 6px;
+        }
+
+        .build-btn {
+            background: var(--btn-active);
+            border: 1px solid var(--gold-primary);
+            color: #fff;
+            padding: 10px;
+            margin: 6px 0;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Cairo', sans-serif;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .build-btn:active {
+            background: #6e441e;
+        }
+
+        .close-btn {
+            background: #7a1d1d;
+            color: white;
+            border: 1px solid #ff6b6b;
+            padding: 8px;
+            width: 100%;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-canvas"></div>
+
+    <div class="ui-layer">
+        <!-- الشريط العلوي -->
+        <header class="top-bar interactive">
+            <div class="player-profile">
+                <div class="avatar">👳‍♂️</div>
+                <div class="profile-info">
+                    <span class="player-name">الأمير صقر</span>
+                    <span class="player-power" id="txt-power">⚡ 1,200</span>
+                </div>
+            </div>
+
+            <div class="resources-group">
+                <div class="res-pill"><span>🌾</span><span id="res-food">0</span></div>
+                <div class="res-pill"><span>🪵</span><span id="res-wood">0</span></div>
+                <div class="res-pill"><span>🪨</span><span id="res-stone">0</span></div>
+                <div class="res-pill"><span>🪙</span><span id="res-gold">0</span></div>
+            </div>
+        </header>
+
+        <!-- الوسط -->
+        <section class="mid-section">
+            <div class="queues-column interactive">
+                <div class="queue-item" id="q-build" title="البناء">🔨</div>
+                <div class="queue-item" id="q-army" title="التدريب">⚔️</div>
+                <div class="queue-item" id="q-research" title="الأبحاث">📖</div>
+            </div>
+        </section>
+
+        <!-- الشريط السفلي -->
+        <footer class="bottom-bar interactive">
+            <button class="map-toggle-btn" onclick="alert('خريطة الصحراء الكبرى ستفتح في التحديث القادم!')">
+                <span>🌍</span>
+                الصحراء
+            </button>
+
+            <nav class="action-buttons">
+                <button class="action-btn" onclick="alert('شاشة القبيلة')"><span>👥</span>القبيلة</button>
+                <button class="action-btn" onclick="alert('قائمة القادة')"><span>⚔️</span>القادة</button>
+                <button class="action-btn" onclick="alert('المخزن والمؤن')"><span>🎒</span>المؤن</button>
+                <button class="action-btn" onclick="alert('صندوق الرسائل')"><span>📜</span>البريد</button>
+            </nav>
+        </footer>
+    </div>
+
+    <!-- نافذة التشييد والترقية -->
+    <div id="build-modal">
+        <div class="modal-header" id="modal-title">تشييد منشأة</div>
+        <div id="modal-options"></div>
+        <button class="close-btn" onclick="closeModal()">إلغاء</button>
+    </div>
+
+    <script>
+        // تحميل وحفظ الحالة في الذاكرة المحلية (LocalStorage)
+        const DEFAULT_STATE = {
+            power: 1500,
+            resources: { food: 2000, wood: 2000, stone: 1000, gold: 500 },
+            production: { food: 4, wood: 4, stone: 2, gold: 1 },
+            slots: [
+                { id: 1, x: 220, y: 180, building: 'قصر الإمارة', level: 1, upgrading: false },
+                { id: 2, x: 420, y: 180, building: 'مزرعة القمح', level: 1, upgrading: false },
+                { id: 3, x: 220, y: 320, building: 'معسكر الحطابين', level: 1, upgrading: false },
+                { id: 4, x: 420, y: 320, building: null, level: 0, upgrading: false }
+            ]
+        };
+
+        let gameState = JSON.parse(localStorage.getItem('arabian_4x_state')) || DEFAULT_STATE;
+
+        function saveGame() {
+            localStorage.setItem('arabian_4x_state', JSON.stringify(gameState));
+        }
+
+        const BUILDINGS = {
+            'مزرعة القمح': { cost: { food: 80, wood: 120, stone: 40, gold: 0 }, time: 4, boostType: 'food', boostVal: 3 },
+            'معسكر الحطابين': { cost: { food: 120, wood: 60, stone: 50, gold: 0 }, time: 4, boostType: 'wood', boostVal: 3 },
+            'محجر الصخور': { cost: { food: 150, wood: 150, stone: 30, gold: 10 }, time: 6, boostType: 'stone', boostVal: 2 },
+            'دار السكة': { cost: { food: 250, wood: 250, stone: 200, gold: 50 }, time: 8, boostType: 'gold', boostVal: 1.5 }
+        };
+
+        let activeContainer = null;
+
+        class MainCityScene extends Phaser.Scene {
+            constructor() { super('MainCityScene'); }
+
+            create() {
+                const w = this.scale.width;
+                const h = this.scale.height;
+
+                // أرضية القلعة
+                this.add.rectangle(w / 2, h / 2, 2000, 2000, 0xba9456);
+                this.add.grid(w / 2, h / 2, 2000, 2000, 60, 60, 0x000000, 0, 0x8a6d38, 0.35);
+
+                // بناء قطع الأراضي (Plots)
+                this.plotContainers = [];
+                gameState.slots.forEach(slot => {
+                    const container = this.add.container(slot.x, slot.y);
+
+                    const base = this.add.rectangle(0, 0, 150, 95, 0x856637)
+                        .setStrokeStyle(2, 0xd4af37)
+                        .setInteractive({ useHandCursor: true });
+
+                    const label = this.add.text(0, 0, slot.building ? `${slot.building}\n(مستوى ${slot.level})` : '+ أرض شاغرة', {
+                        fontFamily: 'Cairo', fontSize: '13px', color: '#ffffff', align: 'center', fontStyle: 'bold'
+                    }).setOrigin(0.5);
+
+                    container.add([base, label]);
+                    container.slotData = slot;
+                    container.base = base;
+                    container.label = label;
+
+                    base.on('pointerdown', () => this.onPlotClicked(container));
+                    this.plotContainers.push(container);
+                });
+
+                // إنتاج الموارد كل ثانية
+                this.time.addEvent({
+                    delay: 1000,
+                    loop: true,
+                    callback: () => this.resourceTick()
+                });
+
+                this.refreshUI();
+            }
+
+            resourceTick() {
+                gameState.resources.food += gameState.production.food;
+                gameState.resources.wood += gameState.production.wood;
+                gameState.resources.stone += gameState.production.stone;
+                gameState.resources.gold += gameState.production.gold;
+                this.refreshUI();
+                saveGame();
+            }
+
+            refreshUI() {
+                document.getElementById('res-food').innerText = Math.floor(gameState.resources.food);
+                document.getElementById('res-wood').innerText = Math.floor(gameState.resources.wood);
+                document.getElementById('res-stone').innerText = Math.floor(gameState.resources.stone);
+                document.getElementById('res-gold').innerText = Math.floor(gameState.resources.gold);
+                document.getElementById('txt-power').innerText = `⚡ ${gameState.power}`;
+            }
+
+            onPlotClicked(container) {
+                const slot = container.slotData;
+                if (slot.upgrading) return;
+
+                activeContainer = container;
+                const modal = document.getElementById('build-modal');
+                const options = document.getElementById('modal-options');
+                options.innerHTML = '';
+
+                if (!slot.building) {
+                    document.getElementById('modal-title').innerText = 'تشييد منشأة إنتاجية';
+                    Object.keys(BUILDINGS).forEach(bName => {
+                        const b = BUILDINGS[bName];
+                        const btn = document.createElement('button');
+                        btn.className = 'build-btn';
+                        btn.innerHTML = `<span>${bName}</span> <span>🌾${b.cost.food} 🪵${b.cost.wood} 🪨${b.cost.stone}</span>`;
+                        btn.onclick = () => this.startBuild(bName, b);
+                        options.appendChild(btn);
+                    });
+                } else {
+                    document.getElementById('modal-title').innerText = `ترقية ${slot.building}`;
+                    const factor = slot.level;
+                    const cost = { food: factor * 100, wood: factor * 100, stone: factor * 80, gold: factor * 20 };
+                    const time = factor * 4;
+
+                    const btn = document.createElement('button');
+                    btn.className = 'build-btn';
+                    btn.innerHTML = `<span>ترقية للمستوى ${slot.level + 1}</span> <span>⏳ ${time}ث | 🌾${cost.food} 🪵${cost.wood}</span>`;
+                    btn.onclick = () => this.startUpgrade(cost, time);
+                    options.appendChild(btn);
+                }
+
+                modal.style.display = 'block';
+            }
+
+            startBuild(name, data) {
+                closeModal();
+                const r = gameState.resources;
+                if (r.food < data.cost.food || r.wood < data.cost.wood || r.stone < data.cost.stone) {
+                    alert('المؤن غير كافية للتشييد!');
+                    return;
+                }
+
+                r.food -= data.cost.food;
+                r.wood -= data.cost.wood;
+                r.stone -= data.cost.stone;
+
+                const slot = activeContainer.slotData;
+                slot.building = name;
+                slot.level = 1;
+                gameState.production[data.boostType] += data.boostVal;
+                gameState.power += 150;
+
+                this.runTimer(activeContainer, data.time);
+            }
+
+            startUpgrade(cost, time) {
+                closeModal();
+                const r = gameState.resources;
+                if (r.food < cost.food || r.wood < cost.wood || r.stone < cost.stone || r.gold < cost.gold) {
+                    alert('الموارد غير كافية للترقية!');
+                    return;
+                }
+
+                r.food -= cost.food;
+                r.wood -= cost.wood;
+                r.stone -= cost.stone;
+                r.gold -= cost.gold;
+
+                const slot = activeContainer.slotData;
+                slot.level += 1;
+                gameState.power += 200;
+
+                const bData = BUILDINGS[slot.building];
+                if (bData) {
+                    gameState.production[bData.boostType] += bData.boostVal;
+                }
+
+                this.runTimer(activeContainer, time);
+            }
+
+            runTimer(container, totalSeconds) {
+                const slot = container.slotData;
+                slot.upgrading = true;
+                let timeLeft = totalSeconds;
+
+                container.base.setFillStyle(0x4a3219);
+                container.label.setText(`جاري البناء...\n⏳ ${timeLeft}ث`);
+
+                this.time.addEvent({
+                    delay: 1000,
+                    repeat: totalSeconds - 1,
+                    callback: () => {
+                        timeLeft--;
+                        if (timeLeft > 0) {
+                            container.label.setText(`جاري البناء...\n⏳ ${timeLeft}ث`);
+                        } else {
+                            slot.upgrading = false;
+                            container.base.setFillStyle(0x856637);
+                            container.label.setText(`${slot.building}\n(مستوى ${slot.level})`);
+                            this.refreshUI();
+                            saveGame();
+                        }
+                    }
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('build-modal').style.display = 'none';
+        }
+
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game-canvas',
+            width: window.innerWidth,
+            height: window.innerHeight,
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            },
+            scene: [MainCityScene]
+        };
+
+        const game = new Phaser.Game(config);
+
+        window.addEventListener('resize', () => {
+            game.scale.resize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
